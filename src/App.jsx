@@ -8,6 +8,7 @@ function App() {
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [imageBlobUrl, setImageBlobUrl] = useState(''); // State لتخزين رابط الصورة المؤقت
 
   // Store worker ID locally and register to backend
   useEffect(() => {
@@ -175,6 +176,37 @@ function App() {
         : `${API_BASE_URL}/uploads/${activeTask.filename || activeTask.fileName}`)
     : '';
 
+  // جلب الصورة كـ Blob وتجاوز صفحة تحذير ngrok
+  useEffect(() => {
+    if (!imageUrl) {
+      setImageBlobUrl('');
+      return;
+    }
+
+    let isMounted = true;
+
+    fetch(imageUrl, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch chunk image');
+        return res.blob();
+      })
+      .then((blob) => {
+        if (isMounted) {
+          const objectUrl = URL.createObjectURL(blob);
+          setImageBlobUrl(objectUrl);
+        }
+      })
+      .catch((err) => console.error('Error loading chunk image blob:', err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, [imageUrl]);
+
   const currentGrayscale = activeTask ? (activeTask.grayscaleValue ?? 0) : 0;
 
   return (
@@ -335,7 +367,7 @@ function App() {
               marginBottom: '20px'
             }}>
               <img 
-                src={imageUrl} 
+                src={imageBlobUrl || imageUrl} 
                 alt="Chunk Segment" 
                 crossOrigin="anonymous"
                 style={{
